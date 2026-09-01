@@ -6,7 +6,7 @@ build*
 .idea
 
 # optional folder where you can work on your exercises and be sure they won't be overwritten
-exercises_workplace
+# exercises_workplace
 
 # cmake files
 CMakeSettings.json
