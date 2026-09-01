@@ -1,4 +1,4 @@
-file(GLOB file_src_list "*.c" "*.cpp")
+file(GLOB file_src_list CONFIGURE_DEPENDS "*.c" "*.cpp")
 
 foreach(file_src ${file_src_list})
 	get_filename_component(targetname ${file_src} NAME_WLE)
