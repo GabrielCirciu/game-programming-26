@@ -26,6 +26,7 @@
 #define NS_TO_SECONDS(x) ((float)(x)/(float)1000000000) // converts nanoseconds to seconds (in floating point precision)
 
 const int NUM_ASTEROIDS = 10;
+const int NUM_PROJECTILES = 3;
 const int DEBUG_CIRCLE_POINT_COUNT = 8;
 const float TAU = 6.2831f; // PI*2
 
@@ -41,6 +42,7 @@ struct E01_EngineContext
 	bool btn_pressed_down  = false;
 	bool btn_pressed_left  = false;
 	bool btn_pressed_right = false;
+	bool btn_pressed_space = false;
 };
 
 struct E01_Entity
@@ -58,19 +60,28 @@ struct E01_DesignParams
 {
 	float entity_size_world   = 64;
 	float entity_size_texture = 128;
+
 	float player_speed = entity_size_world * 5;
 	int   player_sprite_coords_x = 4;
 	int   player_sprite_coords_y = 0;
-	float asteroid_speed_min   = entity_size_world * 2;
-	float asteroid_speed_range = entity_size_world * 4;
+
+	float asteroid_speed_min   = entity_size_world * 1;
+	float asteroid_speed_range = entity_size_world * 1;
 	int   asteroid_sprite_coords_x = 0;
 	int   asteroid_sprite_coords_y = 4;
+	
+	float projectile_speed = entity_size_world * 3;
+	int   projectile_sprite_coords_x = 1;
+	int   projectile_sprite_coords_y = 0;
+	float cooldown_time = 1.f;
+	float cooldown_time_left = 0.f;
 };
 
 struct E01_GameState
 {
 	E01_Entity player;
 	E01_Entity asteroids[NUM_ASTEROIDS];
+	E01_Entity projectiles[NUM_PROJECTILES];
 
 	SDL_Texture* texture_atlas;
 };
@@ -142,6 +153,10 @@ int main(void)
 						context.btn_pressed_down = event.key.down;
 					if(event.key.key == SDLK_D)
 						context.btn_pressed_right = event.key.down;
+					if(event.key.key == SDLK_SPACE)
+						context.btn_pressed_space = event.key.down;
+					if(event.key.key == SDLK_ESCAPE)
+						quit = true;
 			}
 		}
 
@@ -164,6 +179,8 @@ int main(void)
 
 		context.delta = NS_TO_SECONDS(time_elapsed_frame);
 
+		design_params.cooldown_time_left -= context.delta;
+
 #ifdef ENABLE_DIAGNOSTICS
 		{
 			// draw semi-transparent background
@@ -175,6 +192,20 @@ int main(void)
 			SDL_SetRenderDrawColor(context.renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 			SDL_RenderDebugTextFormat(context.renderer, 10.0f, 10.0f, "elapsed (frame): %9.6f ms", NS_TO_MILLIS(time_elapsed_frame));
 			SDL_RenderDebugTextFormat(context.renderer, 10.0f, 20.0f, "elapsed(work)  : %9.6f ms", NS_TO_MILLIS(time_elapsed_work));
+		
+			// Draw debug circles outer range
+			draw_circle(&context, game_state.player.position.x + game_state.player.size/2, game_state.player.position.y + game_state.player.size/2, game_state.player.size);
+			for(int i = 0; i < NUM_ASTEROIDS; i++)
+			{
+				draw_circle(&context, game_state.asteroids[i].position.x + game_state.asteroids[i].size/2, game_state.asteroids[i].position.y + game_state.asteroids[i].size/2, game_state.asteroids[i].size);
+			}
+
+			// Draw debug circles inner range
+			draw_circle(&context, game_state.player.position.x + game_state.player.size/2, game_state.player.position.y + game_state.player.size/2, game_state.player.size * 0.5f);
+			for(int i = 0; i < NUM_ASTEROIDS; i++)
+			{
+				draw_circle(&context, game_state.asteroids[i].position.x + game_state.asteroids[i].size/2, game_state.asteroids[i].position.y + game_state.asteroids[i].size/2, game_state.asteroids[i].size * 0.5f);
+			}
 		}
 #endif
 
@@ -291,6 +322,26 @@ static void init(E01_EngineContext* context, E01_DesignParams* params, E01_GameS
 			asteroid_curr->texture_rect.y = params->entity_size_texture * params->asteroid_sprite_coords_y;
 		}
 	}
+
+	// projectile
+	{
+		E01_Entity* entity_projectile = &game_state->projectile;
+
+		entity_projectile->position.x = context->window_w / 2 - params->entity_size_world / 2;
+		entity_projectile->position.y = context->window_h / 2 - params->entity_size_world / 2;
+		entity_projectile->size       = params->entity_size_world;
+		entity_projectile->velocity   = params->projectile_speed;
+		entity_projectile->texture_atlas = game_state->texture_atlas;
+
+		entity_projectile->rect.w = entity_projectile->size;
+		entity_projectile->rect.h = entity_projectile->size;
+
+		entity_projectile->texture_rect.w = params->entity_size_texture;
+		entity_projectile->texture_rect.h = params->entity_size_texture;
+
+		entity_projectile->texture_rect.x = params->entity_size_texture * params->projectile_sprite_coords_x;
+		entity_projectile->texture_rect.y = params->entity_size_texture * params->projectile_sprite_coords_y;
+	}
 }
 
 static void update(E01_EngineContext* context, E01_DesignParams* params, E01_GameState* game_state)
@@ -350,5 +401,36 @@ static void update(E01_EngineContext* context, E01_DesignParams* params, E01_Gam
 				&asteroid_curr->rect
 			);
 		}
+	}
+
+	// projectile
+	{
+		if(context->btn_pressed_space && params->cooldown_time_left <= 0.f)
+		{
+			for(int i = 0; i < NUM_PROJECTILES; i++)
+			{
+				E01_Entity* projectile_curr = &game_state->projectiles[i];
+
+				// spawn projectile in front of player
+				projectile_curr->position.x = game_state->player.position.x + (game_state->player.size - projectile_curr->size) / 2;
+				projectile_curr->position.y = game_state->player.position.y - projectile_curr->size;
+
+				// move projectile
+				projectile_curr->position.y -= context->delta * projectile_curr->velocity;
+
+				projectile_curr->rect.x = projectile_curr->position.x;
+				projectile_curr->rect.y = projectile_curr->position.y;
+
+				SDL_SetTextureColorMod(projectile_curr->texture_atlas, 0xFF, 0xFF, 0xFF);
+				SDL_RenderTexture(
+					context->renderer,
+					projectile_curr->texture_atlas,
+					&projectile_curr->texture_rect,
+					&projectile_curr->rect
+				);
+			}
+		}
+
+		params->cooldown_time_left -= context->delta;
 	}
 }
