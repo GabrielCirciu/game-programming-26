@@ -2,6 +2,13 @@
 #include "SDL3/SDL_mouse.h"
 #include <SDL3/SDL.h>
 
+static float distance_between_sq(SDL_FRect a, SDL_FRect b)
+{
+	float dx = (a.x + a.w/2) - (b.x + b.w/2);
+	float dy = (a.y + a.h/2) - (b.y + b.h/2);
+	return dx*dx + dy*dy;
+}
+
 int main(void) {
 
   // toggle to swith between the insulated player update (aka, the way you want
@@ -78,6 +85,9 @@ int main(void) {
   bool mouse_button_R = false;
   bool mouse_button_M = false;
 
+  // Collision distance
+  float collision_distance_sq = (player_size * player_size) * 1.5;
+
   SDL_GetCurrentTime(&walltime_frame_beg);
   while (!quit) {
     // input
@@ -133,6 +143,10 @@ int main(void) {
           if (event.key.key == SDLK_D)
             player_rect.x += player_speed;
         }
+        
+        // Esc quits the application
+        if (event.key.key == SDLK_ESCAPE)
+          quit = true;
 
         // debug utilities
         if (event.key.down) {
@@ -208,15 +222,26 @@ int main(void) {
       npc_rect.x += player_speed;
     }
 
-    // Implement hit mechanics somewhere
-
-    SDL_SetRenderDrawColor(renderer, 0x3C, 0x63, 0xFF, 0XFF);
+    // Hit check for player one, radius based, if hit then change player color
+    if (distance_between_sq(player_rect, npc_rect) < collision_distance_sq) {
+      SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, 0XFF);
+    } else {
+      SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0x00, 0XFF);
+    }
     SDL_RenderFillRect(renderer, &player_rect);
-    SDL_SetRenderDrawColor(renderer, 0xFF, 0x63, 0x3C, 0XFF);
+
+    // Hit check for player two, radius based, if hit then change player color
+    if (distance_between_sq(player_two_rect, npc_rect) < collision_distance_sq) {
+      SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, 0XFF);
+    } else {
+      SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0xFF, 0XFF);
+    }
     SDL_RenderFillRect(renderer, &player_two_rect);
-    SDL_SetRenderDrawColor(renderer, 0x3C, 0xFF, 0x3C, 0XFF);
+
+    SDL_SetRenderDrawColor(renderer, 0x00, 0xFF, 0xFF, 0XFF);
     SDL_RenderFillRect(renderer, &npc_rect);
 
+    // For checking frame pacing
     SDL_GetCurrentTime(&walltime_work_end);
     time_elapsed_work = walltime_work_end - walltime_frame_beg;
     walltime_frame_end = walltime_work_end;
