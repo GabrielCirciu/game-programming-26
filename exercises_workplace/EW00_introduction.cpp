@@ -14,8 +14,8 @@ int main(void) {
   int target_framerate_ns = 1000000000 / 60; // 16666666 nanoseconds
 
   SDL_Window *window =
-      SDL_CreateWindow("ES00 - introduction (solved)", window_w, window_h, 0);
-  SDL_Renderer *renderer = SDL_CreateRenderer(window, "vulkan");
+      SDL_CreateWindow("EW00 - introduction", window_w, window_h, 0);
+  SDL_Renderer *renderer = SDL_CreateRenderer(window, NULL);
 
   // increase the zoom to make debug text more legible
   // (ie, on the class projector, we will usually use 2)
