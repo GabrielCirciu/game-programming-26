@@ -10,6 +10,7 @@ static float distance_between_sq(SDL_FRect a, SDL_FRect b)
 }
 
 int main(void) {
+  SDL_srand(280820);
 
   // toggle to swith between the insulated player update (aka, the way you want
   // to do it) and the one performed immediate after polling the event queue
@@ -88,6 +89,9 @@ int main(void) {
   // Collision distance
   float collision_distance_sq = (player_size * player_size) * 1.5;
 
+  // Delta time
+  float delta = 1.0f;
+
   SDL_GetCurrentTime(&walltime_frame_beg);
   while (!quit) {
     // input
@@ -142,6 +146,14 @@ int main(void) {
             player_rect.x -= player_speed;
           if (event.key.key == SDLK_D)
             player_rect.x += player_speed;
+          if (event.key.key == SDLK_UP)
+            player_two_rect.y -= player_speed;
+          if (event.key.key == SDLK_DOWN)
+            player_two_rect.y += player_speed;
+          if (event.key.key == SDLK_LEFT)
+            player_two_rect.x -= player_speed;
+          if (event.key.key == SDLK_RIGHT)
+            player_two_rect.x += player_speed;
         }
         
         // Esc quits the application
@@ -188,30 +200,30 @@ int main(void) {
     if (use_insulated_player_update) {
       // update player position, but ensure not going off screen
       if ((btn_pressed_up) && (player_rect.y > 0))
-        player_rect.y -= player_speed;
+        player_rect.y -= delta * player_speed;
       if ((btn_pressed_down) && (player_rect.y + player_rect.h < window_h))
-        player_rect.y += player_speed;
+        player_rect.y += delta * player_speed;
       if ((btn_pressed_left) && (player_rect.x > 0))
-        player_rect.x -= player_speed;
+        player_rect.x -= delta * player_speed;
       if ((btn_pressed_right) && (player_rect.x + player_rect.w < window_w))
-        player_rect.x += player_speed;
+        player_rect.x += delta * player_speed;
       // update player two position, but ensure not going off screen
       if ((btn_p2_pressed_up) && (player_two_rect.y > 0))
-        player_two_rect.y -= player_speed;
+        player_two_rect.y -= delta * player_speed;
       if ((btn_p2_pressed_down) &&
           (player_two_rect.y + player_two_rect.h < window_h))
-        player_two_rect.y += player_speed;
+        player_two_rect.y += delta * player_speed;
       if ((btn_p2_pressed_left) && (player_two_rect.x > 0))
-        player_two_rect.x -= player_speed;
+        player_two_rect.x -= delta * player_speed;
       if ((btn_p2_pressed_right) &&
           (player_two_rect.x + player_two_rect.w < window_w))
-        player_two_rect.x += player_speed;
+        player_two_rect.x += delta * player_speed;
     }
 
     // NPC Behaviour
     // Choose a random direction, then move the npc that way
     // Why does it always go down right???
-    switch (SDL_rand(4)) {
+    switch ((Sint32)SDL_rand_bits()%4) {
     case 0:
       npc_rect.y -= player_speed;
     case 1:
@@ -353,6 +365,7 @@ int main(void) {
     //       we will go with the first option here
     // walltime_frame_beg = walltime_frame_end;
     SDL_GetCurrentTime(&walltime_frame_beg);
+    delta = (walltime_frame_beg - walltime_frame_end)/1000000.0f;
   }
 
   // NOTE: we created a bunch of resources (window, renderer). Should we
